@@ -3,6 +3,7 @@ import ProgressFlow from '../components/ProgressFlow';
 import TerminalSimulator from '../components/TerminalSimulator';
 import { motion } from 'framer-motion';
 import { Shield, Key, Lock, Zap } from 'lucide-react';
+import ZoomableImage from '../components/ZoomableImage';
 
 const KeygenClass = () => {
     const [currentStep, setCurrentStep] = useState(0);
@@ -89,6 +90,11 @@ const IntroStep = () => (
                 <p className="italic text-saiyan-gold">
                     "Con las llaves SSH, tu ordenador y el servidor se reconocen mutuamente (criptografía). Entras sin escribir nada."
                 </p>
+            </div>
+
+            <div className="mt-6 max-w-lg mx-auto">
+                <ZoomableImage src="/ssh_keys.jpg" alt="SSH Key Authentication Diagram" />
+                <p className="text-sm text-gray-500 mt-2">Esquema de autenticación con Llaves</p>
             </div>
         </div>
     </div>

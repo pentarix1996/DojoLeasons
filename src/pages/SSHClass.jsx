@@ -2,8 +2,9 @@ import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import ProgressFlow from '../components/ProgressFlow';
 import TerminalSimulator from '../components/TerminalSimulator';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Zap, WifiOff, Lock, CheckCircle } from 'lucide-react';
+import ZoomableImage from '../components/ZoomableImage';
 
 const SSHClass = () => {
     const [currentStep, setCurrentStep] = useState(0);
@@ -12,10 +13,10 @@ const SSHClass = () => {
     const steps = [
         { title: "Intro: Teletransportación", id: "intro" },
         { title: "MobaXterm: Tu Nave", id: "mobaxterm" },
+        { title: "Diagnóstico de Errores", id: "errors" },
+        { title: "Estado del Servicio", id: "status" },
         { title: "Práctica: Ronda 1", id: "p1" },
         { title: "Práctica: Ronda 2", id: "p2" },
-        { title: "Práctica: Ronda 3", id: "p3" },
-        { title: "Diagnóstico de Errores", id: "errors" },
         { title: "Reto Final", id: "real-practice" },
         { title: "Resumen", id: "summary" },
     ];
@@ -41,28 +42,19 @@ const SSHClass = () => {
         >
             {currentStep === 0 && <IntroStep />}
             {currentStep === 1 && <MobaGuideStep />}
-            {currentStep === 2 && (
+            {currentStep === 2 && <ErrorHandlingStep />}
+            {currentStep === 3 && <SystemStatusStep />}
+
+            {currentStep === 4 && (
                 <PracticeStep
                     round={1}
                     instructions="Escribe 'ssh alumno@192.168.1.43', acepta la huella con 'yes', e introduce la contraseña."
                     onComplete={() => setTerminalCompleted(true)}
                 />
             )}
-            {currentStep === 3 && (
-                <PracticeStep
-                    round={2}
-                    instructions="Inténtalo de nuevo con menos ayuda. Recuerda: usuario@servidor"
-                    onComplete={() => setTerminalCompleted(true)}
-                />
-            )}
-            {currentStep === 4 && (
-                <PracticeStep
-                    round={3}
-                    instructions="Demuestra que lo dominas. Sin ayuda."
-                    onComplete={() => setTerminalCompleted(true)}
-                />
-            )}
-            {currentStep === 5 && <ErrorHandlingStep />}
+
+            {currentStep === 5 && <Round2Practice />}
+
             {currentStep === 6 && <RealPracticeStep />}
             {currentStep === 7 && <SummaryStep />}
         </ProgressFlow>
@@ -96,6 +88,11 @@ const IntroStep = () => (
                 <p className="italic">
                     "SSH es como la técnica de Teletransportación de Goku. Te permite 'entrar' en otro ordenador instantáneamente a través de la red, usando solo tu mente (y un teclado)."
                 </p>
+            </div>
+
+            <div className="mt-6 max-w-lg mx-auto">
+                <ZoomableImage src="/ssh_pswd.jpg" alt="SSH Password Authentication Diagram" />
+                <p className="text-sm text-gray-500 mt-2">Esquema de autenticación por contraseña</p>
             </div>
         </div>
     </motion.div>
@@ -139,6 +136,133 @@ const PracticeStep = ({ round, instructions, onComplete }) => (
     </div>
 );
 
+const Round2Practice = () => {
+    const [missions, setMissions] = useState([
+        { id: 'ssh', text: 'Conectar por SSH', completed: false, criteria: (e) => e.type === 'ssh_connected' && e.host === '192.168.1.43' },
+        { id: 'ls', text: 'Hacer un listado', completed: false, criteria: (e) => e.type === 'command' && e.command === 'ls' },
+        { id: 'whoami', text: 'Ver quien eres', completed: false, criteria: (e) => e.type === 'command' && e.command === 'whoami' },
+        { id: 'cat', text: 'Leer notas.txt', completed: false, criteria: (e) => e.type === 'command' && e.command === 'cat' && e.full.includes('notas.txt') },
+        { id: 'exit', text: 'Salir de la sesión', completed: false, criteria: (e) => e.type === 'command' && e.command === 'exit' },
+    ]);
+
+    const handleBroadcast = (event) => {
+        setMissions(prev => prev.map(m => {
+            if (m.completed) return m;
+            if (m.criteria(event)) return { ...m, completed: true };
+            return m;
+        }));
+    };
+
+    const allCompleted = missions.every(m => m.completed);
+
+    return (
+        <div className="space-y-4 h-full flex flex-col relative">
+            <div className="flex justify-between items-center mb-2">
+                <h3 className="text-xl font-bold">Práctica - Ronda 2</h3>
+                <span className="text-xs uppercase tracking-widest bg-yellow-500/20 px-2 py-1 rounded text-yellow-500">
+                    Misión Táctica
+                </span>
+            </div>
+
+            {/* Credential Legend */}
+            <div className="bg-white/5 p-3 rounded-lg border border-white/10 flex gap-6 text-sm font-mono overflow-x-auto">
+                <div>
+                    <span className="text-gray-400">Usuario:</span> <span className="text-teleport-cyan">alumno</span>
+                </div>
+                <div>
+                    <span className="text-gray-400">Contraseña:</span> <span className="text-teleport-cyan">1234</span>
+                </div>
+                <div>
+                    <span className="text-gray-400">IP Objetiva:</span> <span className="text-teleport-cyan">192.168.1.43</span>
+                </div>
+            </div>
+
+            <div className="flex-1 min-h-0 relative">
+                <TerminalSimulator
+                    onBroadcast={handleBroadcast}
+                />
+
+                {/* Visual Feedback Overlay */}
+                <AnimatePresence>
+                    {allCompleted && (
+                        <motion.div
+                            initial={{ scale: 0.8, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            className="absolute inset-0 z-10 flex items-center justify-center bg-black/60 backdrop-blur-sm rounded-lg"
+                        >
+                            <div className="text-center p-6 bg-space-black border-2 border-green-500 rounded-2xl shadow-[0_0_50px_rgba(34,197,94,0.3)]">
+                                <motion.div
+                                    animate={{ rotate: 360 }}
+                                    transition={{ duration: 0.5 }}
+                                    className="inline-block mb-4"
+                                >
+                                    <CheckCircle size={64} className="text-green-500" />
+                                </motion.div>
+                                <h4 className="text-3xl font-bold text-white mb-2">¡MISIÓN CUMPLIDA!</h4>
+                                <p className="text-gray-300">Has dominado la simulación.</p>
+                            </div>
+                        </motion.div>
+                    )}
+                </AnimatePresence>
+            </div>
+
+            {/* Active Missions Panel */}
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-2 mt-2">
+                {missions.map(m => (
+                    <div
+                        key={m.id}
+                        className={`p-2 rounded border text-center text-xs transition-colors ${m.completed
+                            ? 'bg-green-500/20 border-green-500 text-green-300'
+                            : 'bg-black/40 border-white/10 text-gray-500'
+                            }`}
+                    >
+                        <div className="mb-1">
+                            {m.completed ? <CheckCircle size={16} className="mx-auto" /> : <div className="w-4 h-4 mx-auto rounded-full border border-gray-600" />}
+                        </div>
+                        {m.text}
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
+};
+
+const SystemStatusStep = () => (
+    <div className="space-y-6">
+        <h3 className="text-2xl font-bold text-blue-400">Estado del Servicio</h3>
+        <p>¿Qué pasa si el servidor rechaza la conexión?</p>
+
+        <div className="bg-blue-900/20 border border-blue-500/30 p-6 rounded-xl space-y-4">
+            <div className="flex items-start gap-4">
+                <div className="p-3 bg-blue-500/20 rounded-lg">
+                    <Zap className="text-blue-400" size={24} />
+                </div>
+                <div>
+                    <h4 className="text-xl font-bold mb-2">Comando de Diagnóstico</h4>
+                    <p className="text-gray-300 mb-4">
+                        Si eres el administrador, puedes preguntar al servidor "cómo se encuentra" con este comando:
+                    </p>
+                    <code className="block bg-black p-3 rounded-lg text-green-400 font-mono text-lg mb-2 shadow-inner">
+                        sudo systemctl status ssh
+                    </code>
+                    <p className="text-sm text-gray-500">
+                        "Systemctl" es como el panel de control de la nave.
+                    </p>
+                </div>
+            </div>
+
+            <div className="border-t border-white/10 pt-4 mt-4">
+                <p className="text-sm font-bold text-gray-400 mb-2">Respuesta Esperada:</p>
+                <div className="font-mono text-xs text-gray-300 bg-black/50 p-4 rounded border border-white/5">
+                    ● ssh.service - OpenBSD Secure Shell server<br />
+                    &nbsp;&nbsp;&nbsp;Loaded: loaded (/lib/systemd/system/ssh.service; enabled; vendor preset: enabled)<br />
+                    &nbsp;&nbsp;&nbsp;<span className="text-green-500 font-bold">Active: active (running)</span> since Mon 2023-10-23 10:00:00 UTC; 2h 30min ago
+                </div>
+            </div>
+        </div>
+    </div>
+);
+
 const ErrorHandlingStep = () => (
     <div className="space-y-6">
         <h3 className="text-2xl font-bold text-error-red">Diagnóstico de Errores</h3>
@@ -178,13 +302,13 @@ const ErrorCard = ({ title, cause, icon }) => (
 
 const RealPracticeStep = () => {
     const [checklist, setChecklist] = useState([
-        { id: 1, text: "Conectar: ssh alumno@192.168.1.43", completed: false },
-        { id: 2, text: "Listar archivos: ls", completed: false },
-        { id: 3, text: "Verificar usuario: whoami", completed: false },
-        { id: 4, text: "Crear carpeta: mkdir misiones", completed: false },
-        { id: 5, text: "Mover notas: mv notas.txt misiones", completed: false },
-        { id: 6, text: "Entrar en carpeta: cd misiones", completed: false },
-        { id: 7, text: "Salir: exit", completed: false },
+        { id: 1, text: "Conectar al servidor SSH", completed: false },
+        { id: 2, text: "Listar los archivos", completed: false },
+        { id: 3, text: "Verificar tu usuario", completed: false },
+        { id: 4, text: "Crear una carpeta llamada 'misiones'", completed: false },
+        { id: 5, text: "Mover 'notas.txt' a la carpeta 'misiones'", completed: false },
+        { id: 6, text: "Entrar en la carpeta 'misiones'", completed: false },
+        { id: 7, text: "Salir del servidor", completed: false },
     ]);
 
     const toggleItem = (id) => {
@@ -193,8 +317,10 @@ const RealPracticeStep = () => {
         ));
     };
 
+    const allCompleted = checklist.every(item => item.completed);
+
     return (
-        <div className="space-y-8 max-w-3xl mx-auto">
+        <div className="space-y-8 max-w-3xl mx-auto relative">
             <div className="text-center space-y-4">
                 <h3 className="text-3xl font-bold text-saiyan-orange">Reto Final</h3>
                 <p className="text-lg text-gray-300">
@@ -203,7 +329,20 @@ const RealPracticeStep = () => {
                 </p>
             </div>
 
-            <div className="bg-space-black p-8 rounded-2xl border border-white/10 shadow-[0_0_50px_rgba(255,140,0,0.1)]">
+            {/* Credential Legend */}
+            <div className="bg-white/5 p-4 rounded-xl border border-white/10 flex flex-wrap justify-center gap-6 text-sm font-mono">
+                <div>
+                    <span className="text-gray-400">Usuario:</span> <span className="text-teleport-cyan">alumno</span>
+                </div>
+                <div>
+                    <span className="text-gray-400">Contraseña:</span> <span className="text-teleport-cyan">1234</span>
+                </div>
+                <div>
+                    <span className="text-gray-400">IP Objetiva:</span> <span className="text-teleport-cyan">192.168.1.43</span>
+                </div>
+            </div>
+
+            <div className="bg-space-black p-8 rounded-2xl border border-white/10 shadow-[0_0_50px_rgba(255,140,0,0.1)] relative overflow-hidden">
                 <div className="space-y-4">
                     {checklist.map((item) => (
                         <motion.div
@@ -222,6 +361,29 @@ const RealPracticeStep = () => {
                         </motion.div>
                     ))}
                 </div>
+
+                {/* Visual Feedback Overlay */}
+                <AnimatePresence>
+                    {allCompleted && (
+                        <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            className="absolute inset-0 z-10 flex items-center justify-center bg-black/80 backdrop-blur-sm"
+                        >
+                            <div className="text-center p-8 bg-black/90 border-2 border-saiyan-orange rounded-2xl shadow-[0_0_50px_rgba(255,140,0,0.5)] transform scale-110">
+                                <motion.div
+                                    animate={{ rotate: 360, scale: [1, 1.2, 1] }}
+                                    transition={{ duration: 0.8 }}
+                                    className="inline-block mb-4"
+                                >
+                                    <CheckCircle size={80} className="text-saiyan-orange" />
+                                </motion.div>
+                                <h4 className="text-4xl font-bold text-white mb-2">¡MISIÓN CUMPLIDA!</h4>
+                                <p className="text-gray-300 text-xl">Has dominado las bases del SSH.</p>
+                            </div>
+                        </motion.div>
+                    )}
+                </AnimatePresence>
             </div>
 
             <div className="text-center text-sm text-gray-500 italic">
