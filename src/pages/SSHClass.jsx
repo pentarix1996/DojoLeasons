@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import ProgressFlow from '../components/ProgressFlow';
 import TerminalSimulator from '../components/TerminalSimulator';
+import MissionTerminal from '../components/MissionTerminal';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Zap, WifiOff, Lock, CheckCircle } from 'lucide-react';
 import ZoomableImage from '../components/ZoomableImage';
@@ -60,6 +61,66 @@ const SSHClass = () => {
         </ProgressFlow>
     );
 };
+
+/* --- Shared Command Logic --- */
+
+const getSSHCommand = (onSuccess) => {
+    return (args, { addToOutput, setInteractiveState, setIsPasswordInput, setUser, setHost, broadcast }) => {
+        if (args.length < 2) {
+            addToOutput("usage: ssh user@host");
+            return;
+        }
+        const target = args[1].split('@');
+        if (target.length !== 2) {
+            addToOutput("ssh: could not resolve hostname");
+            return;
+        }
+
+        const [targetUser, targetHost] = target;
+
+        if (targetHost !== '192.168.1.43') {
+            addToOutput(`ssh: connect to host ${targetHost} port 22: Connection timed out`);
+            return;
+        }
+
+        // Simulate Key Fingerprint confirmation
+        addToOutput("The authenticity of host '192.168.1.43 (192.168.1.43)' can't be established.");
+        addToOutput("ECDSA key fingerprint is SHA256:Kp3...5zE.");
+        addToOutput("Are you sure you want to continue connecting (yes/no)?", "text-yellow-400 font-bold");
+
+        setInteractiveState({
+            type: 'fingerprint_confirm',
+            handler: (input, tools) => {
+                if (input.toLowerCase() === 'yes') {
+                    tools.addToOutput("Warning: Permanently added '192.168.1.43' (ECDSA) to the list of known hosts.");
+                    tools.setInteractiveState({
+                        type: 'password_prompt',
+                        handler: (pass, innerTools) => {
+                            innerTools.setIsPasswordInput(false);
+                            innerTools.addToOutput(""); // Spacer
+                            innerTools.addToOutput("Welcome to Ubuntu 22.04.3 LTS (GNU/Linux 5.15.0-91-generic x86_64)");
+                            innerTools.addToOutput(" * Documentation:  https://help.ubuntu.com");
+                            innerTools.addToOutput(`Last login: ${new Date().toUTCString()} from 192.168.1.10`);
+
+                            innerTools.setUser(targetUser);
+                            innerTools.setHost(targetHost);
+                            innerTools.setInteractiveState(null);
+
+                            if (innerTools.broadcast) innerTools.broadcast({ type: 'ssh_connected', user: targetUser, host: targetHost });
+                            if (onSuccess) onSuccess();
+                        }
+                    });
+                    tools.setIsPasswordInput(true);
+                    tools.addToOutput(`${targetUser}@${targetHost}'s password:`, 'text-white');
+                } else {
+                    tools.addToOutput("Host key verification failed.");
+                    tools.setInteractiveState(null);
+                }
+            }
+        });
+    };
+};
+
 
 /* --- Step Components --- */
 
@@ -129,101 +190,39 @@ const PracticeStep = ({ round, instructions, onComplete }) => (
 
         <div className="flex-1 min-h-0">
             <TerminalSimulator
-                stepCriteria={{ type: 'ssh_connected' }}
-                onCommandSuccess={onComplete}
+                customCommands={{
+                    ssh: getSSHCommand(onComplete)
+                }}
             />
         </div>
     </div>
 );
 
 const Round2Practice = () => {
-    const [missions, setMissions] = useState([
+    const missions = [
         { id: 'ssh', text: 'Conectar por SSH', completed: false, criteria: (e) => e.type === 'ssh_connected' && e.host === '192.168.1.43' },
         { id: 'ls', text: 'Hacer un listado', completed: false, criteria: (e) => e.type === 'command' && e.command === 'ls' },
         { id: 'whoami', text: 'Ver quien eres', completed: false, criteria: (e) => e.type === 'command' && e.command === 'whoami' },
         { id: 'cat', text: 'Leer notas.txt', completed: false, criteria: (e) => e.type === 'command' && e.command === 'cat' && e.full.includes('notas.txt') },
         { id: 'exit', text: 'Salir de la sesión', completed: false, criteria: (e) => e.type === 'command' && e.command === 'exit' },
-    ]);
+    ];
 
-    const handleBroadcast = (event) => {
-        setMissions(prev => prev.map(m => {
-            if (m.completed) return m;
-            if (m.criteria(event)) return { ...m, completed: true };
-            return m;
-        }));
+    const credentials = {
+        usuario: 'alumno',
+        contraseña: '1234',
+        ip: '192.168.1.43'
     };
 
-    const allCompleted = missions.every(m => m.completed);
-
     return (
-        <div className="space-y-4 h-full flex flex-col relative">
-            <div className="flex justify-between items-center mb-2">
-                <h3 className="text-xl font-bold">Práctica - Ronda 2</h3>
-                <span className="text-xs uppercase tracking-widest bg-yellow-500/20 px-2 py-1 rounded text-yellow-500">
-                    Misión Táctica
-                </span>
-            </div>
-
-            {/* Credential Legend */}
-            <div className="bg-white/5 p-3 rounded-lg border border-white/10 flex gap-6 text-sm font-mono overflow-x-auto">
-                <div>
-                    <span className="text-gray-400">Usuario:</span> <span className="text-teleport-cyan">alumno</span>
-                </div>
-                <div>
-                    <span className="text-gray-400">Contraseña:</span> <span className="text-teleport-cyan">1234</span>
-                </div>
-                <div>
-                    <span className="text-gray-400">IP Objetiva:</span> <span className="text-teleport-cyan">192.168.1.43</span>
-                </div>
-            </div>
-
-            <div className="flex-1 min-h-0 relative">
-                <TerminalSimulator
-                    onBroadcast={handleBroadcast}
-                />
-
-                {/* Visual Feedback Overlay */}
-                <AnimatePresence>
-                    {allCompleted && (
-                        <motion.div
-                            initial={{ scale: 0.8, opacity: 0 }}
-                            animate={{ scale: 1, opacity: 1 }}
-                            className="absolute inset-0 z-10 flex items-center justify-center bg-black/60 backdrop-blur-sm rounded-lg"
-                        >
-                            <div className="text-center p-6 bg-space-black border-2 border-green-500 rounded-2xl shadow-[0_0_50px_rgba(34,197,94,0.3)]">
-                                <motion.div
-                                    animate={{ rotate: 360 }}
-                                    transition={{ duration: 0.5 }}
-                                    className="inline-block mb-4"
-                                >
-                                    <CheckCircle size={64} className="text-green-500" />
-                                </motion.div>
-                                <h4 className="text-3xl font-bold text-white mb-2">¡MISIÓN CUMPLIDA!</h4>
-                                <p className="text-gray-300">Has dominado la simulación.</p>
-                            </div>
-                        </motion.div>
-                    )}
-                </AnimatePresence>
-            </div>
-
-            {/* Active Missions Panel */}
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-2 mt-2">
-                {missions.map(m => (
-                    <div
-                        key={m.id}
-                        className={`p-2 rounded border text-center text-xs transition-colors ${m.completed
-                            ? 'bg-green-500/20 border-green-500 text-green-300'
-                            : 'bg-black/40 border-white/10 text-gray-500'
-                            }`}
-                    >
-                        <div className="mb-1">
-                            {m.completed ? <CheckCircle size={16} className="mx-auto" /> : <div className="w-4 h-4 mx-auto rounded-full border border-gray-600" />}
-                        </div>
-                        {m.text}
-                    </div>
-                ))}
-            </div>
-        </div>
+        <MissionTerminal
+            title="Práctica - Ronda 2"
+            subtitle="Misión Táctica"
+            initialMissions={missions}
+            credentials={credentials}
+            customCommands={{
+                ssh: getSSHCommand()
+            }}
+        />
     );
 };
 

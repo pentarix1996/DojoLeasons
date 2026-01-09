@@ -2,13 +2,13 @@ import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import ProgressFlow from '../components/ProgressFlow';
 import TerminalSimulator from '../components/TerminalSimulator';
+import MissionTerminal from '../components/MissionTerminal';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Zap, Settings, ShieldAlert, CheckCircle, RotateCcw } from 'lucide-react';
 import ZoomableImage from '../components/ZoomableImage';
 
 const ConfigSSHClass = () => {
     const [currentStep, setCurrentStep] = useState(0);
-    const [terminalCompleted, setTerminalCompleted] = useState(false);
 
     const steps = [
         { title: "Intro: El Manual de la Nave", id: "intro" },
@@ -23,7 +23,6 @@ const ConfigSSHClass = () => {
     const handleNext = () => {
         if (currentStep < steps.length - 1) {
             setCurrentStep(prev => prev + 1);
-            setTerminalCompleted(false);
         }
     };
 
@@ -54,12 +53,131 @@ const ConfigSSHClass = () => {
     );
 };
 
+/* --- Custom Commands --- */
+
+const getServiceCommand = () => {
+    return (args, { addToOutput, broadcast }) => {
+        // sudo systemctl restart sshd
+        if (args.includes('restart') && (args.includes('sshd') || args.includes('ssh'))) {
+            addToOutput("Restarting sshd.service...");
+            addToOutput("Done.");
+            if (broadcast) broadcast({ type: 'service_restart', service: 'sshd' });
+        } else if (args.includes('status')) {
+            addToOutput("● ssh.service - OpenBSD Secure Shell server");
+            addToOutput("   Active: active (running)");
+        } else {
+            addToOutput("systemctl: invalid command");
+        }
+    };
+};
+
+const getNanoCommand = () => {
+    return (args, { addToOutput, setInteractiveState, broadcast }) => {
+        if (!args[1]) {
+            addToOutput("nano: missing filename");
+            return;
+        }
+
+        // Simulate opening nano
+        setInteractiveState({
+            type: 'nano',
+            handler: (input, tools) => {
+                // Any input 'saves' and exits for this simulation
+                // Realistically we want to detect if they typed the configuration lines
+                // But simplifying: typing anything or ctrl+x equivalents (simulated by just enter or check)
+
+                // Let's make it simpler:
+                // They type "nano ..." -> We show "Entering nano... (Simulated)".
+                // We ask them to type the changes line by line?
+                // Or we just say "File edited." immediately?
+                // The previous code implied they just run the command.
+
+                // Let's just output "Edited." after a delay or immediate.
+                // Or better:
+            }
+        });
+        // Override interactive immediately because building a real nano in 10 mins is hard.
+        // let's just say:
+        addToOutput(`  GNU nano 6.2              ${args[1]}`);
+        addToOutput("");
+        addToOutput("  [ File opened for editing ]");
+        addToOutput("  [ ... Simulated editing ... ]");
+        addToOutput("  [ File saved. ]");
+        setInteractiveState(null); // Return to shell
+
+        if (broadcast) broadcast({ type: 'file_edit', file: args[1] });
+    };
+};
+
+const getConfigSSHCommand = () => {
+    // Needs to handle -p 1234 and root login
+    return (args, { addToOutput, setInteractiveState, setIsPasswordInput, setUser, setHost, broadcast }) => {
+        if (args.length < 2) {
+            addToOutput("usage: ssh user@host");
+            return;
+        }
+
+        // Parse args including -p
+        let port = 22;
+        let userHost = '';
+
+        // simple parser
+        for (let i = 1; i < args.length; i++) {
+            if (args[i] === '-p') {
+                port = parseInt(args[i + 1]);
+                i++;
+            } else if (!args[i].startsWith('-')) {
+                userHost = args[i];
+            }
+        }
+
+        // Special case for practice: Expect port 1234
+        // If the user didn't restart service, it might fail? 
+        // We assume success if they type the command right for this lesson logic.
+
+        if (!userHost.includes('@')) {
+            addToOutput("ssh: invalid format");
+            return;
+        }
+
+        const [targetUser, targetHost] = userHost.split('@');
+
+        // Password Prompt
+        addToOutput(`${targetUser}@${targetHost}'s password:`, 'text-white');
+        setIsPasswordInput(true);
+
+        setInteractiveState({
+            type: 'password',
+            handler: (pass, tools) => {
+                tools.setIsPasswordInput(false);
+                // Allow any password for sim simplicity or '1234'
+                if (pass === '1234' || targetUser === 'root') {
+                    // Root might have different pass but reusing 1234
+                    tools.addToOutput(`Welcome to Ubuntu 22.04.3 LTS`);
+                    tools.setUser(targetUser);
+                    tools.setHost(targetHost);
+                    tools.setInteractiveState(null);
+                    // Broadcast detailed event for criteria
+                    if (tools.broadcast) tools.broadcast({
+                        type: 'ssh_connected',
+                        user: targetUser,
+                        host: targetHost,
+                        port: port,
+                        full: `ssh ${targetUser}@${targetHost} -p ${port}` // Reconstruction approximation or pass raw
+                    });
+                } else {
+                    tools.addToOutput("Permission denied.");
+                    tools.setInteractiveState(null);
+                }
+            }
+        });
+    };
+};
+
 /* --- Step Components --- */
 
 const IntroStep = () => (
-    <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
+    <div
         className="space-y-8 text-center"
     >
         <div className="relative inline-block">
@@ -108,7 +226,7 @@ const IntroStep = () => (
                 <p className="text-sm text-gray-500 mt-2">Esquema de configuración del servidor</p>
             </div>
         </div>
-    </motion.div>
+    </div>
 );
 
 const ConfigPortsStep = () => (
@@ -189,106 +307,73 @@ const ConfigRootStep = () => (
     </div>
 );
 
-const PracticeStep = ({ round, onComplete }) => (
-    <div className="space-y-4 h-full flex flex-col">
-        <h3 className="text-xl font-bold text-saiyan-orange">Práctica - Ronda {round}</h3>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-gray-300">
-            <div className="bg-white/5 p-4 rounded-xl border border-white/10 space-y-2">
-                <span className="text-yellow-400 font-bold block text-lg mb-2">1. Editar Fichero</span>
-                <p>Usa <code>nano</code> para abrir la configuración:</p>
-                <code className="block bg-black/50 p-2 rounded text-green-400">sudo nano /etc/ssh/sshd_config</code>
-                <p className="text-gray-400 text-xs mt-1">Busca "Port" y cámbialo a 1234.</p>
-                <p className="text-gray-400 text-xs mt-1">Busca "PermitRootLogin" y cámbialo a "yes".</p>
-            </div>
-
-            <div className="bg-white/5 p-4 rounded-xl border border-white/10 space-y-2">
-                <span className="text-blue-400 font-bold block text-lg mb-2">2. Reiniciar Nave</span>
-                <p>Aplica los cambios en el motor:</p>
-                <code className="block bg-black/50 p-2 rounded text-green-400">sudo systemctl restart sshd</code>
-            </div>
-        </div>
-    </div>
-);
-
-const Round2Practice = () => {
-    const [missions, setMissions] = useState([
-        { id: 'connect', text: 'Conectar al puerto 1234', completed: false, criteria: (e) => e.type === 'command' && e.full.includes('ssh') && e.full.includes('-p 1234') },
-        { id: 'root', text: 'Conectar como root', completed: false, criteria: (e) => e.type === 'ssh_connected' && e.user === 'root' },
-        { id: 'whoami', text: 'Verificar identidad (whoami)', completed: false, criteria: (e) => e.type === 'command' && e.command === 'whoami' && e.user === 'root' },
-    ]);
-
-    const handleBroadcast = (event) => {
-        setMissions(prev => prev.map(m => {
-            if (m.completed) return m;
-            if (m.criteria(event)) return { ...m, completed: true };
-            return m;
-        }));
-    };
-
-    const allCompleted = missions.every(m => m.completed);
-
+const PracticeStep = ({ round }) => {
+    // This practice just needs free terminal with sudo, nano, systemctl support.
     return (
-        <div className="space-y-4 h-full flex flex-col relative">
-            <h3 className="text-xl font-bold text-saiyan-orange">Práctica - Ronda 2</h3>
+        <div className="space-y-4 h-full flex flex-col">
+            <h3 className="text-xl font-bold text-saiyan-orange">Práctica - Ronda {round}</h3>
 
-            <div className="bg-white/5 p-3 rounded-lg border border-white/10 flex gap-4 text-sm font-mono overflow-x-auto">
-                <div>
-                    <span className="text-gray-400">User:</span> <span className="text-teleport-cyan">alumno-saiyan</span>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-gray-300">
+                <div className="bg-white/5 p-4 rounded-xl border border-white/10 space-y-2">
+                    <span className="text-yellow-400 font-bold block text-lg mb-2">1. Editar Fichero</span>
+                    <p>Usa <code>nano</code> para abrir la configuración:</p>
+                    <code className="block bg-black/50 p-2 rounded text-green-400">sudo nano /etc/ssh/sshd_config</code>
+                    <p className="text-gray-400 text-xs mt-1">Busca "Port" y cámbialo a 1234.</p>
+                    <p className="text-gray-400 text-xs mt-1">Busca "PermitRootLogin" y cámbialo a "yes".</p>
                 </div>
-                <div>
-                    <span className="text-gray-400">IP Objetiva:</span> <span className="text-teleport-cyan">192.168.1.43</span>
-                </div>
-                <div>
-                    <span className="text-gray-400">Pass:</span> <span className="text-teleport-cyan">1234</span>
-                </div>
-                <div>
-                    <span className="text-gray-400">Port:</span> <span className="text-teleport-cyan">1234</span>
+
+                <div className="bg-white/5 p-4 rounded-xl border border-white/10 space-y-2">
+                    <span className="text-blue-400 font-bold block text-lg mb-2">2. Reiniciar Nave</span>
+                    <p>Aplica los cambios en el motor:</p>
+                    <code className="block bg-black/50 p-2 rounded text-green-400">sudo systemctl restart sshd</code>
                 </div>
             </div>
-
-            <div className="flex-1 min-h-0 relative">
+            <div className="flex-1 min-h-0">
                 <TerminalSimulator
-                    onBroadcast={handleBroadcast}
-                    expectedPort={1234}
-                    customEnvironment={{
-                        user: 'alumno-saiyan',
-                        hostname: 'host'
+                    customCommands={{
+                        sudo: (args, tools) => {
+                            // strip sudo
+                            const subArgs = args.slice(1);
+                            if (subArgs.length === 0) return;
+                            const cmd = subArgs[0];
+                            // Naive delegation
+                            if (cmd === 'nano') getNanoCommand()(subArgs, tools);
+                            else if (cmd === 'systemctl') getServiceCommand()(subArgs, tools);
+                            else tools.addToOutput(`sudo: ${cmd}: command not found`);
+                        },
+                        nano: getNanoCommand(),
+                        systemctl: getServiceCommand()
                     }}
                 />
-                <AnimatePresence>
-                    {allCompleted && (
-                        <motion.div
-                            initial={{ scale: 0.8, opacity: 0 }}
-                            animate={{ scale: 1, opacity: 1 }}
-                            className="absolute inset-0 z-10 flex items-center justify-center bg-black/60 backdrop-blur-sm rounded-lg"
-                        >
-                            <div className="text-center p-6 bg-gray-900 border-2 border-green-500 rounded-2xl">
-                                <CheckCircle size={64} className="text-green-500 mx-auto mb-4" />
-                                <h4 className="text-2xl font-bold text-white mb-2">¡ENTRENAMIENTO COMPLETADO!</h4>
-                            </div>
-                        </motion.div>
-                    )}
-                </AnimatePresence>
-            </div>
-
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mt-2">
-                {missions.map(m => (
-                    <div
-                        key={m.id}
-                        className={`p-2 rounded border text-center text-xs transition-colors ${m.completed
-                            ? 'bg-green-500/20 border-green-500 text-green-300'
-                            : 'bg-black/40 border-white/10 text-gray-500'
-                            }`}
-                    >
-                        <div className="mb-1">
-                            {m.completed ? <CheckCircle size={16} className="mx-auto" /> : <div className="w-4 h-4 mx-auto rounded-full border border-gray-600" />}
-                        </div>
-                        {m.text}
-                    </div>
-                ))}
             </div>
         </div>
+    );
+};
+
+const Round2Practice = () => {
+    const missions = [
+        { id: 'connect', text: 'Conectar al puerto 1234', completed: false, criteria: (e) => (e.type === 'ssh_connected' && e.port === 1234) || (e.type === 'command' && e.full && e.full.includes('ssh') && e.full.includes('-p 1234')) },
+        { id: 'root', text: 'Conectar como root', completed: false, criteria: (e) => e.type === 'ssh_connected' && e.user === 'root' },
+        { id: 'whoami', text: 'Verificar identidad (whoami)', completed: false, criteria: (e) => e.type === 'command' && e.command === 'whoami' && e.user === 'root' },
+    ];
+
+    const credentials = {
+        user: 'alumno-saiyan',
+        ip: '192.168.1.43',
+        pass: '1234',
+        port: '1234'
+    };
+
+    return (
+        <MissionTerminal
+            title="Práctica - Ronda 2"
+            subtitle="Misión Táctica"
+            initialMissions={missions}
+            credentials={credentials}
+            customCommands={{
+                ssh: getConfigSSHCommand()
+            }}
+        />
     );
 };
 
