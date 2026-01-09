@@ -5,6 +5,8 @@ import Home from './pages/Home';
 import SSHClass from './pages/SSHClass';
 import KeygenClass from './pages/KeygenClass';
 
+import ConfigSSHClass from './pages/ConfigSSHClass';
+
 function App() {
   return (
     <Router>
@@ -13,6 +15,7 @@ function App() {
           <Route index element={<Home />} />
           <Route path="ssh" element={<SSHClass />} />
           <Route path="keygen" element={<KeygenClass />} />
+          <Route path="config-ssh" element={<ConfigSSHClass />} />
         </Route>
       </Routes>
     </Router>

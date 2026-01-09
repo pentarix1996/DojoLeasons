@@ -25,6 +25,8 @@ const TerminalSimulator = ({
     const [currentPath, setCurrentPath] = useState('/home/alumno');
     const [pendingSSH, setPendingSSH] = useState(null);
     const [keygenState, setKeygenState] = useState(null);
+    const [keysGenerated, setKeysGenerated] = useState(false);
+    const [keysCopied, setKeysCopied] = useState(false);
     const inputRef = useRef(null);
     const bottomRef = useRef(null);
 
@@ -35,6 +37,12 @@ const TerminalSimulator = ({
     }, [history, autoFocus]);
 
     const handleCommand = (cmdStr) => {
+        // Special handling for keygen interactive mode which accepts empty input (defaults)
+        if (keygenState) {
+            handleKeygenInput(cmdStr.trim());
+            return;
+        }
+
         const rawCmd = cmdStr.trim();
         if (!rawCmd) return;
 
@@ -74,21 +82,29 @@ const TerminalSimulator = ({
                 addToOutput(user);
                 break;
             case 'ls':
-                handleLs();
+                handleLs(args);
                 break;
             case 'ssh':
                 handleSSH(args);
                 break;
             case 'ssh-keygen':
-                handleKeygenStart();
+                handleKeygenStart(args);
                 break;
             case 'ssh-copy-id':
-                // Simulated check for key copy
+                if (!keysGenerated) {
+                    addToOutput("ERROR: No identity found. Run 'ssh-keygen' first to generate your keys.");
+                    return;
+                }
                 if (args[1]) {
-                    addToOutput(`Number of key(s) added: 1`);
-                    addToOutput(`Now try logging into the machine, with:   "ssh '${args[1].split('@')[1] || args[1]}'"`);
-                    addToOutput(`and check to make sure that only the key(s) you wanted were added.`);
-                    if (onCommandSuccess) onCommandSuccess(rawCmd);
+                    // Check target validation similar to ssh
+                    const target = args[1].split('@');
+                    if (target.length !== 2 || target[1] !== '192.168.1.43') {
+                        addToOutput("ssh-copy-id: connection failed or invalid host");
+                        return;
+                    }
+                    setPendingSSH({ user: target[0], host: target[1], type: 'copy-id' });
+                    setIsPasswordInput(true);
+                    addToOutput(`${target[0]}@${target[1]}'s password:`, 'text-white');
                 } else {
                     addToOutput("usage: ssh-copy-id user@host");
                 }
@@ -98,14 +114,14 @@ const TerminalSimulator = ({
                     addToOutput("Warning: Permanently added '192.168.1.43' (ECDSA) to the list of known hosts.");
                     setPendingSSH({ ...pendingSSH, awaitingKeyConfirmation: false });
                     setIsPasswordInput(true);
-                    addToOutput(`clase@${pendingSSH.host}'s password:`, 'text-white');
+                    addToOutput(`${pendingSSH.user}@${pendingSSH.host}'s password:`, 'text-white');
                 } else {
                     addToOutput("yes: command not found (unless confirming ssh connection)");
                 }
                 break;
             case 'exit':
                 if (host !== initialHost) {
-                    addToOutput("Connection to 192.168.1.43 closed.");
+                    addToOutput(`Connection to ${host} closed.`);
                     setHost(initialHost);
                     setUser(initialUser);
                 } else {
@@ -129,8 +145,36 @@ const TerminalSimulator = ({
                 if (args.length > 2) handleMove(args[1], args[2]);
                 else addToOutput("mv: missing source or destination");
                 break;
+            case 'echo':
+                handleEcho(args, rawCmd);
+                break;
             default:
                 addToOutput(`${cmd}: command not found`);
+        }
+    };
+
+    const handleEcho = (args, rawCmd) => {
+        // Parse for redirect
+        if (rawCmd.includes('>>')) {
+            const parts = rawCmd.split('>>');
+            const content = parts[0].replace(/^echo\s+/, '').replace(/["']/g, '').trim();
+            const target = parts[1].trim();
+
+            if (target.includes('authorized_keys')) {
+                if (content.length > 10) { // Simple validation that some key was pasted
+                    setKeysCopied(true);
+                    addToOutput(""); // Silent success like linux
+                } else {
+                    addToOutput("echo: key seems too short");
+                }
+                return;
+            }
+            // Generic append simulation (not really storing for now unless we need to)
+            addToOutput("");
+        } else {
+            // Standard echo
+            const content = rawCmd.replace(/^echo\s+/, '').replace(/["']/g, '').trim();
+            addToOutput(content);
         }
     };
 
@@ -138,6 +182,7 @@ const TerminalSimulator = ({
         if (!stepCriteria) return false;
         // Simple exact match check for now, can be expanded
         if (stepCriteria.type === 'ssh_success' && user === 'teacher') return true;
+        if (stepCriteria.type === 'ssh_connected' && host === '192.168.1.43') return true; // Fix this criteria check
         if (stepCriteria.command === cmd) return true;
         return false;
     };
@@ -156,13 +201,15 @@ const TerminalSimulator = ({
         const [targetUser, targetHost] = target;
 
         // Strict validation
-        if (targetHost !== '192.168.1.43') {
+        if (targetHost !== '192.168.1.43') { // Hardcoded for this lesson
             addToOutput(`ssh: connect to host ${targetHost} port 22: Connection timed out`);
             return;
         }
 
-        if (targetUser !== 'alumno') {
-            addToOutput(`Permission denied, please try again.`);
+        // If keys are copied, login immediately without password
+        if (keysCopied) {
+            addToOutput(`Authenticated with partial public key.`);
+            finishLogin(targetUser, targetHost);
             return;
         }
 
@@ -175,27 +222,53 @@ const TerminalSimulator = ({
     const handlePassword = (pass) => {
         setIsPasswordInput(false);
         if (pendingSSH) {
+            if (pendingSSH.type === 'copy-id') {
+                // Handle ssh-copy-id success
+                if (pendingSSH.user === 'alumno' || pendingSSH.user === 'alumno-saiyan') { // Allow both
+                    addToOutput("");
+                    addToOutput(`Number of key(s) added: 1`);
+                    addToOutput(`Now try logging into the machine, with:   "ssh '${pendingSSH.user}@${pendingSSH.host}'"`);
+                    addToOutput(`and check to make sure that only the key(s) you wanted were added.`);
+                    setKeysCopied(true);
+                    setPendingSSH(null);
+
+                    if (onCommandSuccess) onCommandSuccess('ssh-copy-id');
+                } else {
+                    addToOutput("Permission denied (publickey,password).");
+                    setPendingSSH(null);
+                }
+                return;
+            }
+
+            // Normal SSH Login
             // Any password works for "simulated" success unless specified
-            addToOutput(""); // Spacer
-            addToOutput("Welcome to Ubuntu 22.04.3 LTS (GNU/Linux 5.15.0-91-generic x86_64)");
-            addToOutput(" * Documentation:  https://help.ubuntu.com");
-            addToOutput(`Last login: ${new Date().toUTCString()} from 192.168.1.10`);
-
-            setUser(pendingSSH.user); // "clase" or whatever user typed
-            setHost(pendingSSH.host);
-            setPendingSSH(null);
-
-            if (onCommandSuccess && stepCriteria?.type === 'ssh_connected') {
-                onCommandSuccess('connected');
-            }
-            // Broadcast ssh connection event
-            if (onBroadcast) {
-                onBroadcast({ type: 'ssh_connected', user: pendingSSH.user, host: pendingSSH.host });
-            }
+            finishLogin(pendingSSH.user, pendingSSH.host);
         }
     };
 
-    const handleKeygenStart = () => {
+    const finishLogin = (targetUser, targetHost) => {
+        addToOutput(""); // Spacer
+        addToOutput("Welcome to Ubuntu 22.04.3 LTS (GNU/Linux 5.15.0-91-generic x86_64)");
+        addToOutput(" * Documentation:  https://help.ubuntu.com");
+        addToOutput(`Last login: ${new Date().toUTCString()} from 192.168.1.10`);
+
+        setUser(targetUser);
+        setHost(targetHost);
+        setPendingSSH(null);
+
+        if (onCommandSuccess && stepCriteria?.type === 'ssh_connected') {
+            onCommandSuccess('connected');
+        }
+        // Broadcast ssh connection event
+        if (onBroadcast) {
+            onBroadcast({ type: 'ssh_connected', user: targetUser, host: targetHost });
+        }
+    };
+
+    const handleKeygenStart = (args) => {
+        if (args && args[1] && args[1] !== '-t') {
+            // Minimal check
+        }
         addToOutput("Generating public/private rsa key pair.");
         addToOutput("Enter file in which to save the key (/home/alumno/.ssh/id_rsa):");
         setKeygenState('file');
@@ -217,20 +290,61 @@ const TerminalSimulator = ({
             addToOutput("The key fingerprint is:");
             addToOutput("SHA256:wF5... randomart image ...");
             setKeygenState(null);
+            setKeysGenerated(true);
+
+            // Update File System with .ssh and keys
+            setFs(prev => {
+                const newFs = { ...prev };
+                const homePath = '/home/alumno';
+                const sshPath = '/home/alumno/.ssh';
+
+                // Create .ssh dir if not exists
+                if (!newFs[sshPath]) {
+                    newFs[sshPath] = { type: 'dir', children: [] };
+                    // Add to home children if not already there
+                    if (newFs[homePath] && !newFs[homePath].children.includes('.ssh')) {
+                        newFs[homePath].children = [...newFs[homePath].children, '.ssh'];
+                    }
+                }
+
+                // Add keys to .ssh
+                if (!newFs[sshPath].children.includes('id_rsa')) {
+                    newFs[sshPath].children = [...newFs[sshPath].children, 'id_rsa', 'id_rsa.pub'];
+                    newFs[`${sshPath}/id_rsa`] = { type: 'file', content: 'PRIVATE KEY CONTENT' };
+                    newFs[`${sshPath}/id_rsa.pub`] = { type: 'file', content: 'ssh-rsa AAAA...' };
+                }
+
+                return newFs;
+            });
+
             if (onCommandSuccess) onCommandSuccess('ssh-keygen-done');
         }
     };
 
-    const handleLs = () => {
+    const handleLs = (args) => {
         const dir = fs[currentPath];
         if (!dir || dir.type !== 'dir') {
             addToOutput(`ls: cannot access '${currentPath}': No such file or directory`);
             return;
         }
 
+        const showHidden = args && args.some(arg => arg.includes('a'));
+
+        let files = dir.children;
+
+        // Filter hidden files unless -a is present
+        if (!showHidden) {
+            files = files.filter(f => !f.startsWith('.'));
+        }
+
+        if (files.length === 0) {
+            // Check if it's empty effective list
+            // If we filtered everything, show nothing? or just return
+        }
+
         // Simple listing
-        const content = dir.children.join('  ');
-        addToOutput(content || '(empty)');
+        const content = files.join('  ');
+        addToOutput(content || ''); // Empty string if no visible files
     };
 
     const handleMkdir = (dirName) => {
@@ -312,12 +426,47 @@ const TerminalSimulator = ({
     };
 
     const handleCat = (file) => {
-        // Support reading notes even if moved? No, simple simulation
-        if (file === 'notas.txt' && fs[currentPath].children.includes('notas.txt')) {
-            addToOutput("Contenido de notas.txt: NO OLVIDAR TRAER CUPCAKES");
-        } else {
-            addToOutput(`cat: ${file}: No such file or directory`);
+        // Resolve path (simple relative or absolute)
+        let targetPath = file.startsWith('/') ? file : `${currentPath}/${file}`;
+
+        // Handle .ssh/id_rsa case from home
+        if (targetPath.includes('/.ssh/') && !fs[targetPath]) {
+            // Maybe user typed cat .ssh/id_rsa from home
+            // currentPath = /home/alumno, file = .ssh/id_rsa -> /home/alumno/.ssh/id_rsa
+            // Logic above covers it if appended correctly
         }
+
+        // Clean up double slashes just in case
+        targetPath = targetPath.replace('//', '/');
+
+        // Check if direct file exists in fs map (e.g. /home/alumno/notas.txt)
+        if (fs[targetPath] && fs[targetPath].type === 'file') {
+            addToOutput(fs[targetPath].content);
+            return;
+        }
+
+        // Check if it's a child of current dir (simplified logic used in other handlers)
+        const dir = fs[currentPath];
+        if (dir && dir.children.includes(file)) {
+            // It's in the children list, but maybe we didn't define the full path key for 'notas.txt'?
+            // In initial state: '/home/alumno/notas.txt' is defined.
+            // But for keys we defined full path keys.
+
+            // Try constructing full path again
+            const checkPath = `${currentPath}/${file}`.replace('//', '/');
+            if (fs[checkPath] && fs[checkPath].type === 'file') {
+                addToOutput(fs[checkPath].content);
+                return;
+            }
+        }
+
+        // Specific hardcode fallback for compatibility if state was slightly off, but new logic should cover it
+        if (file === 'notas.txt' && currentPath === '/home/alumno') {
+            addToOutput("Contenido de notas.txt: NO OLVIDAR TRAER CUPCAKES");
+            return;
+        }
+
+        addToOutput(`cat: ${file}: No such file or directory`);
     };
 
     const addToOutput = (text, className = "text-gray-300") => {
@@ -367,7 +516,7 @@ const TerminalSimulator = ({
 
                 {/* Input Line */}
                 <div className="flex gap-2 mt-2">
-                    {!isPasswordInput && (
+                    {!isPasswordInput && !keygenState && (
                         <span className="text-green-400 font-bold flex-shrink-0">
                             {user}@{host}:~$
                         </span>

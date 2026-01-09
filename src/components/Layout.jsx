@@ -1,6 +1,6 @@
 import React from 'react';
 import { Outlet, Link, useLocation } from 'react-router-dom';
-import { Terminal, Shield, Zap, Home } from 'lucide-react';
+import { Terminal, Shield, Zap, Home, Settings } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 const Layout = () => {
@@ -37,6 +37,11 @@ const Layout = () => {
                         <Link to="/keygen">
                             <NavButton active={location.pathname === '/keygen'} icon={<Shield size={18} />}>
                                 KeyGen
+                            </NavButton>
+                        </Link>
+                        <Link to="/config-ssh">
+                            <NavButton active={location.pathname === '/config-ssh'} icon={<Settings size={18} />}>
+                                Config
                             </NavButton>
                         </Link>
                     </nav>

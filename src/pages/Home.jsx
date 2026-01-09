@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Unplug, ShieldCheck, ArrowRight } from 'lucide-react';
+import { Unplug, ShieldCheck, ArrowRight, Settings } from 'lucide-react';
 
 const Home = () => {
     return (
@@ -23,7 +23,7 @@ const Home = () => {
                 </p>
             </motion.div>
 
-            <div className="grid md:grid-cols-2 gap-8 w-full max-w-4xl">
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8 w-full max-w-6xl">
                 <ClassCard
                     to="/ssh"
                     title="Clase 1: SSH"
@@ -42,6 +42,15 @@ const Home = () => {
                     color="gold"
                     delay={0.4}
                 />
+                <ClassCard
+                    to="/config-ssh"
+                    title="Clase 3: Config SSH"
+                    subtitle="El Manual de la Nave"
+                    description="Modifica los puertos y permisos de tu servidor para máxima seguridad y control."
+                    icon={<Settings size={40} />}
+                    color="purple"
+                    delay={0.6}
+                />
             </div>
         </div>
     );
@@ -51,11 +60,13 @@ const ClassCard = ({ title, subtitle, description, icon, to, color, delay }) => 
     const colors = {
         cyan: 'from-teleport-cyan to-blue-600 group-hover:shadow-teleport-cyan/40',
         gold: 'from-saiyan-gold to-saiyan-orange group-hover:shadow-saiyan-gold/40',
+        purple: 'from-purple-500 to-indigo-600 group-hover:shadow-purple-500/40',
     };
 
     const textColors = {
         cyan: 'text-teleport-cyan',
         gold: 'text-saiyan-gold',
+        purple: 'text-purple-400',
     };
 
     return (
