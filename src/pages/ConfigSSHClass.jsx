@@ -4,6 +4,7 @@ import ProgressFlow from '../components/ProgressFlow';
 import TerminalSimulator from '../components/TerminalSimulator';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Zap, Settings, ShieldAlert, CheckCircle, RotateCcw } from 'lucide-react';
+import ZoomableImage from '../components/ZoomableImage';
 
 const ConfigSSHClass = () => {
     const [currentStep, setCurrentStep] = useState(0);
@@ -100,6 +101,11 @@ const IntroStep = () => (
                         <span className="text-xs text-gray-500 mt-1 block">Por eso usamos `systemctl restart sshd`. Reiniciar `ssh` (tu cliente) no serviría de nada.</span>
                     </p>
                 </div>
+            </div>
+
+            <div className="mt-6 max-w-lg mx-auto">
+                <ZoomableImage src="/ssh_config.jpg" alt="SSH Configuration Diagram" />
+                <p className="text-sm text-gray-500 mt-2">Esquema de configuración del servidor</p>
             </div>
         </div>
     </motion.div>
@@ -209,7 +215,7 @@ const Round2Practice = () => {
     const [missions, setMissions] = useState([
         { id: 'connect', text: 'Conectar al puerto 1234', completed: false, criteria: (e) => e.type === 'command' && e.full.includes('ssh') && e.full.includes('-p 1234') },
         { id: 'root', text: 'Conectar como root', completed: false, criteria: (e) => e.type === 'ssh_connected' && e.user === 'root' },
-        { id: 'whoami', text: 'Verificar identidad (whoami)', completed: false, criteria: (e) => e.type === 'command' && e.command === 'whoami' },
+        { id: 'whoami', text: 'Verificar identidad (whoami)', completed: false, criteria: (e) => e.type === 'command' && e.command === 'whoami' && e.user === 'root' },
     ]);
 
     const handleBroadcast = (event) => {
@@ -224,7 +230,7 @@ const Round2Practice = () => {
 
     return (
         <div className="space-y-4 h-full flex flex-col relative">
-            <h3 className="text-xl font-bold">Práctica - Ronda 2</h3>
+            <h3 className="text-xl font-bold text-saiyan-orange">Práctica - Ronda 2</h3>
 
             <div className="bg-white/5 p-3 rounded-lg border border-white/10 flex gap-4 text-sm font-mono overflow-x-auto">
                 <div>
@@ -244,6 +250,7 @@ const Round2Practice = () => {
             <div className="flex-1 min-h-0 relative">
                 <TerminalSimulator
                     onBroadcast={handleBroadcast}
+                    expectedPort={1234}
                     customEnvironment={{
                         user: 'alumno-saiyan',
                         hostname: 'host'
