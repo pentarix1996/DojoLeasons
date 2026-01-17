@@ -119,7 +119,7 @@ const getSSHKeygenCommand = () => {
 };
 
 const getSSHCopyIdCommand = () => {
-    return (args, { addToOutput, setInteractiveState, setIsPasswordInput, state, broadcast }) => {
+    return (args, { addToOutput, setInteractiveState, setIsPasswordInput, state, broadcast: initialBroadcast }) => {
         // Validation: Check if keys exist
         const hasKeys = state.fs['/home/alumno-saiyan/.ssh/id_rsa.pub'];
         if (!hasKeys) {
@@ -151,10 +151,18 @@ const getSSHCopyIdCommand = () => {
                 if (pass === 'root') { // Hardcoded correct password
                     tools.addToOutput("");
                     tools.addToOutput(`Number of key(s) added: 1`);
-                    tools.addToOutput(`Now try logging into the machine, with:   "ssh '${targetUser}@${targetHost}'"`);
+                    tools.addToOutput(`Now try logging into the machine, with: "ssh '${targetUser}@${targetHost}'"`);
                     tools.addToOutput(`and check to make sure that only the key(s) you wanted were added.`);
 
+                    // DIRECT FIX: Update FS to simulate installed keys on remote
+                    tools.setFs(prev => ({
+                        ...prev,
+                        '/remote/installed': { type: 'file', content: 'marker' }
+                    }));
+
+                    // Broadcast success for mission tracking
                     if (tools.broadcast) tools.broadcast({ type: 'keys_copied' });
+
                     tools.setInteractiveState(null);
                 } else {
                     tools.addToOutput("Permission denied (publickey,password).");
@@ -205,7 +213,8 @@ const getSmartSSHCommand = (keysCopied = false) => {
 
         if (isAuthorized) {
             addToOutput("Authenticated with partial public key.");
-            finishLogin(targetUser, targetHost, { addToOutput, setUser, setHost, broadcast });
+            // Method 'key' signals passwordless entry
+            finishLogin(targetUser, targetHost, { addToOutput, setUser, setHost, broadcast, setInteractiveState }, 'key');
             return;
         }
 
@@ -219,7 +228,7 @@ const getSmartSSHCommand = (keysCopied = false) => {
             handler: (pass, tools) => {
                 tools.setIsPasswordInput(false);
                 if (pass === 'root') {
-                    finishLogin(targetUser, targetHost, tools);
+                    finishLogin(targetUser, targetHost, tools, 'password');
                 } else {
                     tools.addToOutput("Permission denied.");
                     tools.setInteractiveState(null);
@@ -229,13 +238,13 @@ const getSmartSSHCommand = (keysCopied = false) => {
     };
 };
 
-const finishLogin = (user, host, tools) => {
+const finishLogin = (user, host, tools, method = 'password') => {
     tools.addToOutput("");
     tools.addToOutput("Welcome to Ubuntu 22.04.3 LTS");
     tools.setUser(user);
     tools.setHost(host);
     tools.setInteractiveState(null);
-    if (tools.broadcast) tools.broadcast({ type: 'ssh_connected', user, host });
+    if (tools.broadcast) tools.broadcast({ type: 'ssh_connected', user, host, method });
 };
 
 
@@ -305,6 +314,38 @@ const KeysVisualStep = () => (
                 </p>
             </motion.div>
         </div>
+
+        <div className="mt-8 bg-white/5 p-6 rounded-xl border border-white/10 max-w-2xl mx-auto font-mono text-sm leading-relaxed">
+            <h4 className="text-center text-lg font-bold text-saiyan-gold mb-4">La Prueba Matemática (RSA Simplificado)</h4>
+            <div className="grid grid-cols-2 gap-4 border-b border-gray-700 pb-4 mb-4">
+                <div>
+                    <span className="text-gray-400 block">Clave Pública (e, n)</span>
+                    <span className="text-saiyan-gold">e = 3, n = 33</span>
+                </div>
+                <div>
+                    <span className="text-gray-400 block">Clave Privada (d, n)</span>
+                    <span className="text-teleport-cyan">d = 7, n = 33</span>
+                </div>
+            </div>
+
+            <div className="space-y-3">
+                <p><span className="text-gray-400">1. Servidor manda prueba (m):</span> <span className="text-white font-bold">4</span></p>
+
+                <p>
+                    <span className="text-gray-400">2. Cliente firma con Privada:</span><br />
+                    s = mᵈ mod n = 4⁷ mod 33 = 16384 mod 33 = <span className="text-teleport-cyan font-bold">16</span>
+                </p>
+
+                <p>
+                    <span className="text-gray-400">3. Servidor verifica con Pública:</span><br />
+                    v = sᵉ mod n = 16³ mod 33 = 4096 mod 33 = <span className="text-saiyan-gold font-bold">4</span>
+                </p>
+
+                <div className="mt-4 text-center bg-green-500/20 p-2 rounded border border-green-500/50">
+                    <span className="text-green-400 font-bold">¡Éxito! (4 == 4) -&gt; "Pase usted"</span>
+                </div>
+            </div>
+        </div>
     </div>
 );
 
@@ -323,6 +364,18 @@ const CopyIdStep = () => (
                     <p className="text-gray-500 my-2"># Te pedirá la contraseña del usuario remoto UNA ÚNICA VEZ</p>
                     <p className="mt-2">Number of key(s) added: 1</p>
                 </div>
+            </div>
+
+            <div className="bg-space-black p-6 rounded-xl border border-white/10 opacity-75 hover:opacity-100 transition-opacity">
+                <h4 className="text-xl font-bold text-red-400 mb-2">Opción B: La forma manual</h4>
+                <p className="text-gray-300 mb-4">Alternativa manual.</p>
+                <ol className="list-decimal list-inside space-y-2 text-sm text-gray-400 font-mono">
+                    <li>Copiar contenido de <span className="text-white">id_rsa.pub</span> (pública)</li>
+                    <li>Conectarse al servidor: <span className="text-white">ssh usuario@ip</span></li>
+                    <li>Crear carpeta: <span className="text-white">mkdir -p ~/.ssh</span></li>
+                    <li>Editar archivo: <span className="text-white">nano ~/.ssh/authorized_keys</span></li>
+                    <li>Pegar la clave pública y guardar (Ctrl+O, Enter, Ctrl+X)</li>
+                </ol>
             </div>
         </div>
     </div>
@@ -416,7 +469,7 @@ const Round2Practice = () => {
         { id: 'pub', text: 'Ver clave pública', completed: false, criteria: (e) => e.type === 'command' && e.command === 'cat' && e.full.includes('id_rsa.pub') },
         { id: 'priv', text: 'Ver clave privada', completed: false, criteria: (e) => e.type === 'command' && e.command === 'cat' && (e.full.includes('id_rsa') && !e.full.includes('.pub')) },
         { id: 'copy', text: 'Enviar claves', completed: false, criteria: (e) => e.type === 'keys_copied' },
-        { id: 'connect', text: 'Conectar sin password', completed: false, criteria: (e) => e.type === 'ssh_connected' }, // We trust the command logic to only allow this if auth'd or password provided, but here we want 'without password' specifically?
+        { id: 'connect', text: 'Conectar sin password', completed: false, criteria: (e) => e.type === 'ssh_connected' && e.method === 'key' }, // Strict check for passwordless
         // The criterion 'ssh_connected' just means connected. The user knows if they typed a password or not.
         // If we want strict check, we'd need 'ssh_connected_key' event.
         { id: 'whoami', text: 'Ver quien eres', completed: false, criteria: (e) => e.type === 'command' && e.command === 'whoami' },

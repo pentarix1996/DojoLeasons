@@ -39,7 +39,7 @@ const SSHClass = () => {
             currentStepIndex={currentStep}
             onNext={handleNext}
             onPrev={handlePrev}
-            title="Módulo 1: Protocolo SSH"
+            title="Módulo 1: SSH-Basic"
         >
             {currentStep === 0 && <IntroStep />}
             {currentStep === 1 && <MobaGuideStep />}

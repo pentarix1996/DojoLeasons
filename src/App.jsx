@@ -6,6 +6,8 @@ import SSHClass from './pages/SSHClass';
 import KeygenClass from './pages/KeygenClass';
 
 import ConfigSSHClass from './pages/ConfigSSHClass';
+import ApacheBasicClass from './pages/ApacheBasicClass';
+import ApacheConfigClass from './pages/ApacheConfigClass';
 
 function App() {
   return (
@@ -16,6 +18,8 @@ function App() {
           <Route path="ssh" element={<SSHClass />} />
           <Route path="keygen" element={<KeygenClass />} />
           <Route path="config-ssh" element={<ConfigSSHClass />} />
+          <Route path="apache-basic" element={<ApacheBasicClass />} />
+          <Route path="apache-config" element={<ApacheConfigClass />} />
         </Route>
       </Routes>
     </Router>

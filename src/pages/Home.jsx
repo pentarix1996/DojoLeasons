@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Unplug, ShieldCheck, ArrowRight, Settings } from 'lucide-react';
+import { Unplug, ShieldCheck, ArrowRight, Settings, Server } from 'lucide-react';
 
 const Home = () => {
     return (
@@ -23,34 +23,67 @@ const Home = () => {
                 </p>
             </motion.div>
 
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8 w-full max-w-6xl">
-                <ClassCard
-                    to="/ssh"
-                    title="Clase 1: SSH"
-                    subtitle="Teletransportación Instantánea"
-                    description="Aprende a conectarte a otros ordenadores a la velocidad de la luz. Sin moverte de tu silla."
-                    icon={<Unplug size={40} />}
-                    color="cyan"
-                    delay={0.2}
-                />
-                <ClassCard
-                    to="/keygen"
-                    title="Clase 2: KeyGen"
-                    subtitle="Modo Super Saiyan"
-                    description="Entra sin contraseña. Desbloquea el poder de las llaves criptográficas y olvida los passwords."
-                    icon={<ShieldCheck size={40} />}
-                    color="gold"
-                    delay={0.4}
-                />
-                <ClassCard
-                    to="/config-ssh"
-                    title="Clase 3: Config SSH"
-                    subtitle="El Manual de la Nave"
-                    description="Modifica los puertos y permisos de tu servidor para máxima seguridad y control."
-                    icon={<Settings size={40} />}
-                    color="purple"
-                    delay={0.6}
-                />
+            <div className="w-full max-w-6xl space-y-12">
+
+                {/* SSH Section */}
+                <div className="space-y-6">
+                    <h2 className="text-3xl font-bold text-white pl-4 border-l-4 border-teleport-cyan">Módulo: SSH</h2>
+                    <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+                        <ClassCard
+                            to="/ssh"
+                            title="Lección 1: SSH-Basic"
+                            subtitle="Teletransportación Instantánea"
+                            description="Aprende a conectarte a otros ordenadores a la velocidad de la luz. Sin moverte de tu silla."
+                            icon={<Unplug size={40} />}
+                            color="cyan"
+                            delay={0.2}
+                        />
+                        <ClassCard
+                            to="/keygen"
+                            title="Lección 2: KeyGen"
+                            subtitle="Modo Super Saiyan"
+                            description="Entra sin contraseña. Desbloquea el poder de las llaves criptográficas y olvida los passwords."
+                            icon={<ShieldCheck size={40} />}
+                            color="gold"
+                            delay={0.3}
+                        />
+                        <ClassCard
+                            to="/config-ssh"
+                            title="Lección 3: Config SSH"
+                            subtitle="El Manual de la Nave"
+                            description="Modifica los puertos y permisos de tu servidor para máxima seguridad y control."
+                            icon={<Settings size={40} />}
+                            color="purple"
+                            delay={0.4}
+                        />
+                    </div>
+                </div>
+
+                {/* Apache Section */}
+                <div className="space-y-6">
+                    <h2 className="text-3xl font-bold text-white pl-4 border-l-4 border-saiyan-orange">Módulo: Apache</h2>
+                    <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+                        <ClassCard
+                            to="/apache-basic"
+                            title="Lección 1: Apache-Basic"
+                            subtitle="El Servidor Web"
+                            description="Descubre cómo funcionan las páginas web. Instala y configura tu propio servidor Apache."
+                            icon={<Server size={40} />}
+                            color="orange"
+                            delay={0.5}
+                        />
+                        <ClassCard
+                            to="/apache-config"
+                            title="Lección 2: Apache-Config"
+                            subtitle="Multi-Sitio"
+                            description="Configura Virtual Hosts para alojar múltiples webs en el mismo servidor. Domina el archivo .conf."
+                            icon={<Settings size={40} />}
+                            color="orange"
+                            delay={0.6}
+                        />
+                    </div>
+                </div>
+
             </div>
         </div>
     );
@@ -61,12 +94,14 @@ const ClassCard = ({ title, subtitle, description, icon, to, color, delay }) => 
         cyan: 'from-teleport-cyan to-blue-600 group-hover:shadow-teleport-cyan/40',
         gold: 'from-saiyan-gold to-saiyan-orange group-hover:shadow-saiyan-gold/40',
         purple: 'from-purple-500 to-indigo-600 group-hover:shadow-purple-500/40',
+        orange: 'from-orange-500 to-red-600 group-hover:shadow-orange-500/40',
     };
 
     const textColors = {
         cyan: 'text-teleport-cyan',
         gold: 'text-saiyan-gold',
         purple: 'text-purple-400',
+        orange: 'text-orange-400',
     };
 
     return (

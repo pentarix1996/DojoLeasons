@@ -1,6 +1,6 @@
 import React from 'react';
 import { Outlet, Link, useLocation } from 'react-router-dom';
-import { Terminal, Shield, Zap, Home, Settings } from 'lucide-react';
+import { Terminal, Shield, Zap, Home, Settings, Server } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 const Layout = () => {
@@ -29,21 +29,39 @@ const Layout = () => {
                                 Inicio
                             </NavButton>
                         </Link>
-                        <Link to="/ssh">
-                            <NavButton active={location.pathname === '/ssh'} icon={<Zap size={18} />}>
-                                SSH
-                            </NavButton>
-                        </Link>
-                        <Link to="/keygen">
-                            <NavButton active={location.pathname === '/keygen'} icon={<Shield size={18} />}>
-                                KeyGen
-                            </NavButton>
-                        </Link>
-                        <Link to="/config-ssh">
-                            <NavButton active={location.pathname === '/config-ssh'} icon={<Settings size={18} />}>
-                                Config
-                            </NavButton>
-                        </Link>
+
+                        {/* SSH Section */}
+                        <div className="flex bg-white/5 rounded-lg p-1 gap-1">
+                            <Link to="/ssh">
+                                <NavButton active={location.pathname === '/ssh'} icon={<Zap size={18} />}>
+                                    SSH
+                                </NavButton>
+                            </Link>
+                            <Link to="/keygen">
+                                <NavButton active={location.pathname === '/keygen'} icon={<Shield size={18} />}>
+                                    KeyGen
+                                </NavButton>
+                            </Link>
+                            <Link to="/config-ssh">
+                                <NavButton active={location.pathname === '/config-ssh'} icon={<Settings size={18} />}>
+                                    Config
+                                </NavButton>
+                            </Link>
+                        </div>
+
+                        {/* Apache Section */}
+                        <div className="flex bg-white/5 rounded-lg p-1 gap-1">
+                            <Link to="/apache-basic">
+                                <NavButton active={location.pathname === '/apache-basic'} icon={<Server size={18} />}>
+                                    Apache
+                                </NavButton>
+                            </Link>
+                            <Link to="/apache-config">
+                                <NavButton active={location.pathname === '/apache-config'} icon={<Settings size={18} />}>
+                                    Config
+                                </NavButton>
+                            </Link>
+                        </div>
                     </nav>
                 </div>
             </header>
