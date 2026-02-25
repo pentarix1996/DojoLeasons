@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Unplug, ShieldCheck, ArrowRight, Settings, Server } from 'lucide-react';
+import { Unplug, ShieldCheck, ArrowRight, Settings, Server, Terminal, Trophy } from 'lucide-react';
 
 const Home = () => {
     return (
@@ -24,6 +24,31 @@ const Home = () => {
             </motion.div>
 
             <div className="w-full max-w-6xl space-y-12">
+
+                {/* Bash Section */}
+                <div className="space-y-6">
+                    <h2 className="text-3xl font-bold text-white pl-4 border-l-4 border-green-500">Módulo: Bash</h2>
+                    <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+                        <ClassCard
+                            to="/bash-basic"
+                            title="Lección 1: Comandos Básicos"
+                            subtitle="El Lenguaje del Sistema"
+                            description="Aprende a hablar directamente con el sistema operativo. Navega, crea y destruye archivos."
+                            icon={<Terminal size={40} />}
+                            color="cyan"
+                            delay={0.1}
+                        />
+                        <ClassCard
+                            to="/bash-advanced"
+                            title="Lección 2: Comandos Avanzados"
+                            subtitle="Dominando los Flujos"
+                            description="Conecta comandos con pipes, redirige salidas y conviértete en un mago de la terminal."
+                            icon={<Unplug size={40} />}
+                            color="cyan"
+                            delay={0.2}
+                        />
+                    </div>
+                </div>
 
                 {/* SSH Section */}
                 <div className="space-y-6">
@@ -84,6 +109,22 @@ const Home = () => {
                     </div>
                 </div>
 
+                {/* Examenes Section */}
+                <div className="space-y-6">
+                    <h2 className="text-3xl font-bold text-white pl-4 border-l-4 border-red-600">Exámenes</h2>
+                    <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+                        <ClassCard
+                            to="/exam01"
+                            title="Exam01: Apache Warrior"
+                            subtitle="Prueba Final"
+                            description="Demuestra todo lo aprendido. Configura un servidor web completo, base de datos y despliega WordPress."
+                            icon={<Trophy size={40} />}
+                            color="red"
+                            delay={0.7}
+                        />
+                    </div>
+                </div>
+
             </div>
         </div>
     );
@@ -95,6 +136,7 @@ const ClassCard = ({ title, subtitle, description, icon, to, color, delay }) => 
         gold: 'from-saiyan-gold to-saiyan-orange group-hover:shadow-saiyan-gold/40',
         purple: 'from-purple-500 to-indigo-600 group-hover:shadow-purple-500/40',
         orange: 'from-orange-500 to-red-600 group-hover:shadow-orange-500/40',
+        red: 'from-red-600 to-rose-700 group-hover:shadow-red-600/40',
     };
 
     const textColors = {
@@ -102,6 +144,7 @@ const ClassCard = ({ title, subtitle, description, icon, to, color, delay }) => 
         gold: 'text-saiyan-gold',
         purple: 'text-purple-400',
         orange: 'text-orange-400',
+        red: 'text-red-500',
     };
 
     return (

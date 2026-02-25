@@ -1,6 +1,6 @@
 import React from 'react';
 import { Outlet, Link, useLocation } from 'react-router-dom';
-import { Terminal, Shield, Zap, Home, Settings, Server } from 'lucide-react';
+import { Terminal, Shield, Zap, Home, Settings, Server, Trophy } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 const Layout = () => {
@@ -29,6 +29,20 @@ const Layout = () => {
                                 Inicio
                             </NavButton>
                         </Link>
+
+                        {/* Bash Section */}
+                        <div className="flex bg-white/5 rounded-lg p-1 gap-1">
+                            <Link to="/bash-basic">
+                                <NavButton active={location.pathname === '/bash-basic'} icon={<Terminal size={18} />}>
+                                    Bash
+                                </NavButton>
+                            </Link>
+                            <Link to="/bash-advanced">
+                                <NavButton active={location.pathname === '/bash-advanced'} icon={<Settings size={18} />}>
+                                    Adv
+                                </NavButton>
+                            </Link>
+                        </div>
 
                         {/* SSH Section */}
                         <div className="flex bg-white/5 rounded-lg p-1 gap-1">
@@ -59,6 +73,15 @@ const Layout = () => {
                             <Link to="/apache-config">
                                 <NavButton active={location.pathname === '/apache-config'} icon={<Settings size={18} />}>
                                     Config
+                                </NavButton>
+                            </Link>
+                        </div>
+
+                        {/* Exam Section */}
+                        <div className="flex bg-white/5 rounded-lg p-1 gap-1">
+                            <Link to="/exam01">
+                                <NavButton active={location.pathname === '/exam01'} icon={<Trophy size={18} />}>
+                                    Exam01
                                 </NavButton>
                             </Link>
                         </div>
